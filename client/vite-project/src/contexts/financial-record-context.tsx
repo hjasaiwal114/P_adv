@@ -1,149 +1,134 @@
-import { useUser } from  "@clerk/clerk-react";
-import { createContext, useContext, useEffect, useState, useCallback } from "react";
+import { useUser } from "@clerk/clerk-react";
+import { createContext, useContext, useEffect, useState } from "react";
 
-// Define FinancialRecord interface 
-export interface FinancialRecord{
-    _id?: string;
-    userId: string;
-    date: Date;
-    description: string;
-    amount: number;
-    category: string;
-    paymentMethod: string;
-} 
-
-// Define the context type
-interface FinacialRecordsContextType {
-    records: FinancialRecord[];
-    addRecord: (record: FinancialRecord) => void;
-    updateRecord: (id: string, newRecord: FinancialRecord) => void;
-    deleteRecord: (id: string) => void;
+export interface FinancialRecord {
+  _id?: string;
+  userId: string;
+  date: Date;
+  description: string;
+  amount: number;
+  category: string;
+  paymentMethod: string;
 }
 
-// Create the context
+interface FinancialRecordsContextType {
+  records: FinancialRecord[];
+  addRecord: (record: FinancialRecord) => void;
+  updateRecord: (id: string, newRecord: FinancialRecord) => void;
+  deleteRecord: (id: string) => void;
+}
+
 export const FinancialRecordsContext = createContext<
-    FinacialRecordsContextType | undefined
+  FinancialRecordsContextType | undefined
 >(undefined);
 
-// FinancialRecordsProvider component
-export const FinacialRecordsProvider = ({
-    children,
+export const FinancialRecordsProvider = ({
+  children,
 }: {
-    children: React.ReactNode;
+  children: React.ReactNode;
 }) => {
-    const [records, setRecords] = useState<FinancialRecord[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
-    const { user } = useUser();
+  const [records, setRecords] = useState<FinancialRecord[]>([]);
+  const { user } = useUser();
 
-    const fetchRecords = useCallback(async () => {
-        if (!user) return;
-        try {
-            const response = await fetch(
-                `http://localhost:3001/financial-records/getAllByUserID/${user.id}`
-            );
-            if (response.ok) {
-                const data: FinancialRecord[] = await response.json();
-                setRecords(data);
-            }   else {
-                console.error("Failed to fetch records");
-            }
-        } catch (err) {
-          console.error("Error fetching records:", err);
-        } finally {
-          setLoading(false);
-        }
-    }, [user]);
-
-    useEffect(() => {
-        if (user) {
-            fetchRecords();
-        }
-    }, [user, fetchRecords]);
-
-    const addRecord = useCallback(async (record: FinancialRecord) => {
-        try {
-            const response = await fetch("http://localhost:3001/financial-records", {
-                method: "POST",
-                body: JSON.stringify(record),
-                headers: {
-                    "Content-Type": "appplication/json",
-                },
-            });
-
-            if (response.ok) {
-                const newRecord: FinancialRecord = await response.json();
-                setRecords((prev) => [...prev, newRecord]);
-            } else {
-                console.error("Failed to add record");
-            }
-        } catch (err) {
-            console.error("Error adding record");
-        }
-    }, []);
-
-    const updateRecord = useCallback(async (id: string, newRecord: FinancialRecord) => {
-        try {
-            const response = await fetch (
-                `http://localhost:3001/financial-records/${id}`,
-                {
-                    method: "PUT",
-                    body: JSON.stringify(newRecord),
-                    headers: {
-                        "Content-Type": "application/json",
-                    },
-                }
-            );
-
-            if (response.ok) {
-                const updatedRecord: FinancialRecord  = await response.json();
-                setRecords((prev) => 
-                    prev.map((record) => (record._id === id ? updatedRecord: record))
-                );
-            } else {
-                console.log("Failed to update record");
-            }
-        } catch (err) {
-            console.error("Error updating record:", err);
-        }
-    }, []);
-
-    const deleteRecord = useCallback(async (id: string) => {
-        try {
-            const response = await fetch(
-                `http://localhost:3001/financial-records/${id}`,
-                {
-                    method: "DELETE",
-                }
-            );
-
-            if (response.ok) {
-                setRecords((prev) => prev.filter((record) => record._id !== id));
-            } else {
-                console.error("Failed to delete record");
-            }
-        } catch (err) {
-            console.error("Error deleting record:", err);
-        }
-    }, []);
-
-    return (
-        <FinancialRecordsContext.Provider
-            value={{ records, addRecord, updateRecord, deleteRecord }}
-        >
-            {loading? <div>Loading ...</div>: children}
-        </FinancialRecordsContext.Provider>
+  const fetchRecords = async () => {
+    if (!user) return;
+    const response = await fetch(
+      `http://localhost:3001/financial-records/getAllByUserID/${user.id}`
     );
+
+    if (response.ok) {
+      const records = await response.json();
+      console.log(records);
+      setRecords(records);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecords();
+  }, [user]);
+
+  const addRecord = async (record: FinancialRecord) => {
+    const response = await fetch("http://localhost:3001/financial-records", {
+      method: "POST",
+      body: JSON.stringify(record),
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    try {
+      if (response.ok) {
+        const newRecord = await response.json();
+        setRecords((prev) => [...prev, newRecord]);
+      }
+    } catch (err) {}
+  };
+
+  const updateRecord = async (id: string, newRecord: FinancialRecord) => {
+    const response = await fetch(
+      `http://localhost:3001/financial-records/${id}`,
+      {
+        method: "PUT",
+        body: JSON.stringify(newRecord),
+        headers: {
+          "Content-Type": "application/json",
+        },
+      }
+    );
+
+    try {
+      if (response.ok) {
+        const newRecord = await response.json();
+        setRecords((prev) =>
+          prev.map((record) => {
+            if (record._id === id) {
+              return newRecord;
+            } else {
+              return record;
+            }
+          })
+        );
+      }
+    } catch (err) {}
+  };
+
+  const deleteRecord = async (id: string) => {
+    const response = await fetch(
+      `http://localhost:3001/financial-records/${id}`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    try {
+      if (response.ok) {
+        const deletedRecord = await response.json();
+        setRecords((prev) =>
+          prev.filter((record) => record._id !== deletedRecord._id)
+        );
+      }
+    } catch (err) {}
+  };
+
+  return (
+    <FinancialRecordsContext.Provider
+      value={{ records, addRecord, updateRecord, deleteRecord }}
+    >
+      {children}
+    </FinancialRecordsContext.Provider>
+  );
 };
 
-// custom hook to use the financial reocrd context
 export const useFinancialRecords = () => {
-    const context = useContext(FinancialRecordsContext);
+  const context = useContext<FinancialRecordsContextType | undefined>(
+    FinancialRecordsContext
+  );
 
-    if (!context) {
-        throw new Error(
-            "useFinancialRecords must be used within a FinancialRecordsProvider"
-        );
-    }
+  if (!context) {
+    throw new Error(
+      "useFinancialRecords must be used within a FinancialRecordsProvider"
+    );
+  }
 
-    return context;
+  return context;
 };
